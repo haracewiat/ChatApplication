@@ -1,27 +1,10 @@
-'''
-    1. socket
-    2. connect (blocks)
-    3. send
-    4. receive (blocks)
-    5. close
-
-    Requirements:
-    1. Connect to the chat server and log in using a unique name.
-    2. Ask for another name is the chosen name is already taken.
-    3. Shutdown the client by typing !quit.
-    4. List all currently logged-in users by typing !who.
-    5. Send messages to other users by typing @username message.
-    6. Receive messages from other users and display them to the user.
-
-'''
-
 import socket
 import threading
 import sys
-import select
 
 HOST = '18.195.107.195'
 PORT = 5378
+BUFFER = 4096
 
 
 class Client:
@@ -34,28 +17,27 @@ class Client:
         # login
 
         # send & receive
-        thread_send = threading.Thread(target=self.send)
-        thread_send.start()
+        while True:
+            thread_send = threading.Thread(target=self.send)
+            thread_send.start()
 
-        thread_receive = threading.Thread(target=self.receive)
-        thread_receive.start()
+            thread_receive = threading.Thread(target=self.receive)
+            thread_receive.start()
 
         # disconnect
 
     def send(self):
-        '''
-        string_bytes = "Sockets are great!".encode("utf-8")
-        self.sock.sendall(string_bytes)
-        '''
-        while True:
-            self.sock.send(bytes(input(""), 'utf-8'))
+        string_bytes = sys.stdin.readline().encode("utf-8")
+        self.sock.send(string_bytes)
 
     def receive(self):
-        data = self.sock.recv(4096)
+        data = self.sock.recv(BUFFER)
+
         if not data:
             print("Socket is closed.")
+            # FIXME if user exists, print is executed endlessly
         else:
-            print("Socket has data.")
+            print(data.decode("utf-8"))
 
     def login(self):
         pass

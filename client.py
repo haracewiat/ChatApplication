@@ -17,27 +17,29 @@ class Client:
         # login
 
         # send & receive
-        while True:
-            thread_send = threading.Thread(target=self.send)
-            thread_send.start()
+        thread_send = threading.Thread(target=self.send)
+        thread_send.start()
 
-            thread_receive = threading.Thread(target=self.receive)
-            thread_receive.start()
+        thread_receive = threading.Thread(target=self.receive)
+        thread_receive.start()
 
         # disconnect
+        # self.disconnect()
 
     def send(self):
-        string_bytes = sys.stdin.readline().encode("utf-8")
-        self.sock.send(string_bytes)
+        while True:
+            string_bytes = sys.stdin.readline().encode("utf-8")
+            self.sock.send(string_bytes)
 
     def receive(self):
-        data = self.sock.recv(BUFFER)
+        while True:
+            data = self.sock.recv(BUFFER)
 
-        if not data:
-            print("Socket is closed.")
-            # FIXME if user exists, print is executed endlessly
-        else:
-            print(data.decode("utf-8"))
+            if not data:
+                print("Socket is closed.")
+                # FIXME if user exists, print is executed endlessly
+            else:
+                print(data.decode("utf-8"))
 
     def login(self):
         pass

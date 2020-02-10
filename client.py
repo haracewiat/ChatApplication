@@ -27,6 +27,7 @@ BUFFER = 4096
 class Client:
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    connected = False
 
     def __init__(self):
 
@@ -34,28 +35,37 @@ class Client:
         self.connect()
 
         # Send and receive messages
-        thread_send = threading.Thread(target=self.send)
-        thread_send.start()
-
         thread_receive = threading.Thread(target=self.receive)
         thread_receive.start()
 
+        thread_send = threading.Thread(target=self.send())
+        thread_send.start()
+
     def receive(self):
-        # FIXME should loop to allow another try
         while True:
-            data = self.sock.recv(BUFFER)
-            if data:
-                print(Parser.decode(data))
-                
+            message = self.sock.recv(BUFFER)
+            if message:
+                self.handle_receive(message)
+
+    def handle_receive(self, message):
+        if message == bytes('IN-USE\n', 'utf-8'):
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.connect()
+
+        print(Parser.decode(message))
+
     def send(self):
         while True:
             message = Parser.encode(input())
-            print(message, type(message))
-            self.sock.sendall(message)
+            self.handle_send(message)
 
-            '''
-            message = input(f'{username} > ')
-            '''
+    def handle_send(self, message):
+
+        if message == bytes('QUIT\n', 'utf-8'):
+            # FIXME close thread_receive
+            self.disconnect()
+
+        self.sock.sendall(message)
 
     def connect(self):
         try:
@@ -63,9 +73,13 @@ class Client:
         except:
             print("Cannot establish connection. Aborting.")
             sys.exit()
-        print("Connected to remote host.")
+
+        if not self.connected:
+            print("Connected to remote host.")
+            self.connected = True
 
     def disconnect(self):
+        thread_receive.close()
         self.sock.close()
         print("Disconnected.")
         sys.exit()
@@ -82,17 +96,17 @@ class Parser:
         !quit       : QUIT
         '''
 
-        # FIXME QUIT is not a message to the server but to the client class to call self.disconnect()!
+        # Case: empty message
+        if len(message) == 0:
+            return bytes('\n', 'utf-8')
 
         switch = {
-            # anything that follows '!' is a command itself
-            '!': message[1:].upper()  + '\n',
-            # anything that follows '@' needs to be preceded with 'SEND '
+            '!': message[1:].upper() + '\n',
             '@': 'SEND ' + message[1:] + '\n'
         }
 
-        # Default (starts neither with '!' or '@'): must be first hand-shake (login)
-        translated_message = switch.get(message[0], 'HELLO-FROM ' + message + '\n')
+        translated_message = switch.get(
+            message[0], 'HELLO-FROM ' + message + '\n')
 
         # Encode to utf-8
         encoded_message = translated_message.encode('utf-8')
@@ -118,23 +132,17 @@ class Parser:
         decoded_message = decoded_message.split(' ')
         argument = ['', '']
 
-        if len(decoded_message) > 1: argument[0] = decoded_message[1]
-        if len(decoded_message) > 2: argument[1] = decoded_message[2]
-        
-
-        print(decoded_message)
-
-        # FIXME Strings have different lenght. Can't hardcode indexes like decoded_message[1],
-        #       because SEND-OK has no index of 1 and it will throw an error.
-        #       Find a way to go around this issue (index out of bounds) and replace the dynamic
-        #       values.
+        if len(decoded_message) > 1:
+            argument[0] = decoded_message[1]
+        if len(decoded_message) > 2:
+            argument[1] = decoded_message[2:]
 
         switch = {
             'HELLO': 'Successfully logged in as ' + argument[0],
             'WHO-OK': 'Available users: ' + argument[0],
             'SEND-OK\n': 'Sent successfully.',
             'UNKNOWN\n': 'Username does not exist',
-            'DELIVERY':  argument[0] + ': ' + argument[1],
+            'DELIVERY':  argument[0] + ': ' + ' '.join(argument[1]),
             'IN-USE\n': 'The username ' + argument[0] + ' is already taken. Choose a different one.',
             'BUSY\n': 'The total number of users is exceeded. Try connecting later.',
             'BAD-RQST-HDR\n': 'Unknown command.',
@@ -149,5 +157,3 @@ class Parser:
 
 
 client = Client()
-
-# FIXME Why can't I exit with ctrl+c?

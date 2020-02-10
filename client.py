@@ -1,7 +1,23 @@
+#!/usr/bin/env python
+
+"""
+    Client side script to allow communication with the server. 
+
+    The program recognizes the following commands:
+        !who    : returns a list of available users
+        !quit   : quits the connection
+
+    To send a message, type:
+        @<username> <message>
+
+    To login, simply type the chosen username:
+        <username>
+
+"""
+
 import socket
 import threading
 import sys
-import time
 
 HOST = '18.195.107.195'
 PORT = 5378
@@ -25,11 +41,11 @@ class Client:
         thread_receive.start()
 
     def receive(self):
+        # FIXME should loop to allow another try
         while True:
             data = self.sock.recv(BUFFER)
             if not data:
                 print("Socket is closed.")
-                # FIXME should loop to allow another try
                 self.disconnect()
             else:
                 print(Parser.decode(data))
@@ -43,6 +59,10 @@ class Client:
             string_bytes = sys.stdin.readline().encode("utf-8")
             # print(string_bytes, type(string_bytes))
             self.sock.send(string_bytes)
+
+            '''
+            message = input(f'{username} > ')
+            '''
 
     def connect(self):
         try:
@@ -69,6 +89,8 @@ class Parser:
         !quit       : QUIT
         '''
 
+        # FIXME QUIT is not a message to the server but to the client class to call self.disconnect()!
+
         switch = {
             # anything that follows '!' is a command itself
             '!': message[1:].upper(),
@@ -90,17 +112,19 @@ class Parser:
         HELLO           : Successfully logged in as <username>
         WHO-OK          : Available users: <username>, ...
         SEND-OK\n       : Sent successfully.
-        UNKNOWN         : Username does not exist
+        UNKNOWN\n       : Username does not exist
         DELIVERY        : <username>: <message>
-        IN-USE          : The username <username> is already taken.
-        BUSY            : The total number of users is exceeded. Try later.
-        BAD-RQST-HDR    : Unknown command. 
-        BAD-RQST-BODY   : Your message contains an error and cannot be sent.
+        IN-USE\n        : The username <username> is already taken.
+        BUSY\n          : The total number of users is exceeded. Try later.
+        BAD-RQST-HDR\n  : Unknown command. 
+        BAD-RQST-BODY\n : Your message contains an error and cannot be sent.
         '''
 
         # Decode from utf-8 and seperate the words
         decoded_message = message.decode('utf-8')
         decoded_message = decoded_message.split(' ')
+
+        print(decoded_message)
 
         # FIXME Strings have different lenght. Can't hardcode indexes like decoded_message[1],
         #       because SEND-OK has no index of 1 and it will throw an error.
@@ -111,12 +135,12 @@ class Parser:
             'HELLO': 'Successfully logged in as <username>',
             'WHO-OK': 'Available users: <username>, ...',
             'SEND-OK\n': 'Sent successfully.',
-            'UNKNOWN': 'Username does not exist',
+            'UNKNOWN\n': 'Username does not exist',
             'DELIVERY': '<username>: <message>',
-            'IN-USE': 'The username <username> is already taken. Choose a different one.',
-            'BUSY': 'The total number of users is exceeded. Try connecting later.',
-            'BAD-RQST-HDR': 'Unknown command.',
-            'BAD-RQST-BODY': 'Your message contains an error and cannot be sent.'
+            'IN-USE\n': 'The username <username> is already taken. Choose a different one.',
+            'BUSY\n': 'The total number of users is exceeded. Try connecting later.',
+            'BAD-RQST-HDR\n': 'Unknown command.',
+            'BAD-RQST-BODY\n': 'Your message contains an error and cannot be sent.'
         }
 
         # Look for translation in the switch

@@ -35,7 +35,7 @@ class Client:
         self.connect()
 
         # Send and receive messages
-        thread_receive = threading.Thread(target=self.receive)
+        thread_receive = threading.Thread(target=self.receive, daemon=True)
         thread_receive.start()
 
         thread_send = threading.Thread(target=self.send())
@@ -79,7 +79,7 @@ class Client:
             self.connected = True
 
     def disconnect(self):
-        thread_receive.close()
+        #thread_receive.close()
         self.sock.close()
         print("Disconnected.")
         sys.exit()

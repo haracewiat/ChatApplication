@@ -9,92 +9,123 @@ BUFFER = 4096
 
 
 class Client:
+
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    thread_list = []
-    socket_closed = False
-    login_correct = False
 
     def __init__(self):
+
+        # Connect to the host
         self.connect()
-        self.login()
-        thread_receive = threading.Thread(target=self.receive,  daemon=True)
+
+        # Send and receive messages
+        thread_send = threading.Thread(target=self.send)
+        thread_send.start()
+
+        thread_receive = threading.Thread(target=self.receive)
         thread_receive.start()
-        if not self.socket_closed:
-            self.wait_for_command()
-        else:
-            sys.exit()
 
     def receive(self):
         while True:
             data = self.sock.recv(BUFFER)
             if not data:
                 print("Socket is closed.")
-                self.socket_closed = True
-                break
-                # FIXME if user exists, print is executed endlessly
+                # FIXME should loop to allow another try
+                self.disconnect()
             else:
-                print(data.decode("utf-8"))
-        sys.exit()
+                print(Parser.decode(data))
 
-    def send_as_bytes(self, send_this):
-        send_this_as_bytes = send_this.encode("utf-8")
-        self.sock.send(send_this_as_bytes)
-
-    def login(self):
-        print("First, let's log in. Type in your name:")
-        name = input()
-        if name == "!quit":
-            self.quit_command(name)
-        send_login = "HELLO-FROM " + name + "\n"
-        self.send_as_bytes(send_login)
-        #login_response_as_bytes = self.sock.recv(BUFFER)
-        #login_response = login_response_as_bytes.decode("utf-8")
-        #print(login_response)
-        #if login_response == "IN-USE\n":
-         #   print(login_response)
-          #  print("Try another name: ")
-           # newname = input()
-            #if newname == "quit":
-             #   self.quit_command()
-            #send_login = "HELLO-FROM " + name + "\n"
-            #self.send_as_bytes(send_login)
-
-
-    def wait_for_command(self):
-        command = input()
-        if command == "!quit":
-            self.quit_command(command)
-        elif command == "!who":
-            self.who_command(command)
-        elif command[0] == '@':
-            self.send_command(command[1:])
-
-    def who_command(self, command):
-        send_who = "WHO\n"
-        self.send_as_bytes(send_who)
-        self.wait_for_command()
-
-    def quit_command(self, command):
-        self.disconnect()
-
-    def send_command(self, command):
-        name, msg = command.split(' ', 1)
-        send_msg = "SEND " + name + " " + msg + "\n"
-        self.send_as_bytes(send_msg)
-        self.wait_for_command()
+    def send(self):
+        # FIXME Why are the messages not sent? Wrong encoding?
+        while True:
+            # message = Parser.encode(input())
+            # print(message, type(message))
+            # self.sock.sendall(message)
+            string_bytes = sys.stdin.readline().encode("utf-8")
+            # print(string_bytes, type(string_bytes))
+            self.sock.send(string_bytes)
 
     def connect(self):
         try:
             self.sock.connect((HOST, PORT))
         except:
-            print('Cannot establish connection. Aborting.')
+            print("Cannot establish connection. Aborting.")
             sys.exit()
-        print('Connected to remote host.')
+        print("Connected to remote host.")
 
     def disconnect(self):
         self.sock.close()
-        print("Closed socket. Exiting...")
+        print("Disconnected.")
         sys.exit()
 
 
+class Parser:
+
+    def encode(message):
+        '''
+        Chat Application Protocol for the CLIENT side:
+        <username>  : HELLO-FROM <username>
+        @<username> : SEND <username> <message>
+        !who        : WHO
+        !quit       : QUIT
+        '''
+
+        switch = {
+            # anything that follows '!' is a command itself
+            '!': message[1:].upper(),
+            # anything that follows '@' needs to be preceded with 'SEND '
+            '@': 'SEND ' + message[1:]
+        }
+
+        # Default (starts neither with '!' or '@'): must be first hand-shake (login)
+        translated_message = switch.get(message[0], 'HELLO-FROM ' + message)
+
+        # Encode to utf-8
+        encoded_message = translated_message.encode('utf-8')
+
+        return encoded_message
+
+    def decode(message):
+        '''
+        Chat Application Protocol for the SERVER side:
+        HELLO           : Successfully logged in as <username>
+        WHO-OK          : Available users: <username>, ...
+        SEND-OK\n       : Sent successfully.
+        UNKNOWN         : Username does not exist
+        DELIVERY        : <username>: <message>
+        IN-USE          : The username <username> is already taken.
+        BUSY            : The total number of users is exceeded. Try later.
+        BAD-RQST-HDR    : Unknown command. 
+        BAD-RQST-BODY   : Your message contains an error and cannot be sent.
+        '''
+
+        # Decode from utf-8 and seperate the words
+        decoded_message = message.decode('utf-8')
+        decoded_message = decoded_message.split(' ')
+
+        # FIXME Strings have different lenght. Can't hardcode indexes like decoded_message[1],
+        #       because SEND-OK has no index of 1 and it will throw an error.
+        #       Find a way to go around this issue (index out of bounds) and replace the dynamic
+        #       values.
+
+        switch = {
+            'HELLO': 'Successfully logged in as <username>',
+            'WHO-OK': 'Available users: <username>, ...',
+            'SEND-OK\n': 'Sent successfully.',
+            'UNKNOWN': 'Username does not exist',
+            'DELIVERY': '<username>: <message>',
+            'IN-USE': 'The username <username> is already taken. Choose a different one.',
+            'BUSY': 'The total number of users is exceeded. Try connecting later.',
+            'BAD-RQST-HDR': 'Unknown command.',
+            'BAD-RQST-BODY': 'Your message contains an error and cannot be sent.'
+        }
+
+        # Look for translation in the switch
+        translated_message = switch.get(
+            decoded_message[0], 'Unknown response.')
+
+        return translated_message
+
+
 client = Client()
+
+# FIXME Why can't I exit with ctrl+c?

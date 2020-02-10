@@ -53,12 +53,9 @@ class Client:
     def send(self):
         # FIXME Why are the messages not sent? Wrong encoding?
         while True:
-            # message = Parser.encode(input())
-            # print(message, type(message))
-            # self.sock.sendall(message)
-            string_bytes = sys.stdin.readline().encode("utf-8")
-            # print(string_bytes, type(string_bytes))
-            self.sock.send(string_bytes)
+            message = Parser.encode(input())
+            print(message, type(message))
+            self.sock.sendall(message)
 
             '''
             message = input(f'{username} > ')
@@ -93,13 +90,13 @@ class Parser:
 
         switch = {
             # anything that follows '!' is a command itself
-            '!': message[1:].upper(),
+            '!': message[1:].upper()  + '\n',
             # anything that follows '@' needs to be preceded with 'SEND '
-            '@': 'SEND ' + message[1:]
+            '@': 'SEND ' + message[1:] + '\n'
         }
 
         # Default (starts neither with '!' or '@'): must be first hand-shake (login)
-        translated_message = switch.get(message[0], 'HELLO-FROM ' + message)
+        translated_message = switch.get(message[0], 'HELLO-FROM ' + message + '\n')
 
         # Encode to utf-8
         encoded_message = translated_message.encode('utf-8')

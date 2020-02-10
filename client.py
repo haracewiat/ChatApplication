@@ -44,14 +44,10 @@ class Client:
         # FIXME should loop to allow another try
         while True:
             data = self.sock.recv(BUFFER)
-            if not data:
-                print("Socket is closed.")
-                self.disconnect()
-            else:
+            if data:
                 print(Parser.decode(data))
-
+                
     def send(self):
-        # FIXME Why are the messages not sent? Wrong encoding?
         while True:
             message = Parser.encode(input())
             print(message, type(message))
@@ -120,6 +116,11 @@ class Parser:
         # Decode from utf-8 and seperate the words
         decoded_message = message.decode('utf-8')
         decoded_message = decoded_message.split(' ')
+        argument = ['', '']
+
+        if len(decoded_message) > 1: argument[0] = decoded_message[1]
+        if len(decoded_message) > 2: argument[1] = decoded_message[2]
+        
 
         print(decoded_message)
 
@@ -129,12 +130,12 @@ class Parser:
         #       values.
 
         switch = {
-            'HELLO': 'Successfully logged in as <username>',
-            'WHO-OK': 'Available users: <username>, ...',
+            'HELLO': 'Successfully logged in as ' + argument[0],
+            'WHO-OK': 'Available users: ' + argument[0],
             'SEND-OK\n': 'Sent successfully.',
             'UNKNOWN\n': 'Username does not exist',
-            'DELIVERY': '<username>: <message>',
-            'IN-USE\n': 'The username <username> is already taken. Choose a different one.',
+            'DELIVERY':  argument[0] + ': ' + argument[1],
+            'IN-USE\n': 'The username ' + argument[0] + ' is already taken. Choose a different one.',
             'BUSY\n': 'The total number of users is exceeded. Try connecting later.',
             'BAD-RQST-HDR\n': 'Unknown command.',
             'BAD-RQST-BODY\n': 'Your message contains an error and cannot be sent.'

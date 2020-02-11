@@ -27,7 +27,6 @@ BUFFER = 4096
 class Client:
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    connected = False
 
     def __init__(self):
 
@@ -35,11 +34,11 @@ class Client:
         self.connect()
 
         # Send and receive messages
+        thread_send = threading.Thread(target=self.send)
+        thread_send.start()
+
         thread_receive = threading.Thread(target=self.receive, daemon=True)
         thread_receive.start()
-
-        thread_send = threading.Thread(target=self.send())
-        thread_send.start()
 
     def receive(self):
         while True:
@@ -48,10 +47,12 @@ class Client:
                 self.handle_receive(message)
 
     def handle_receive(self, message):
+        # Handle special cases
         if message == bytes('IN-USE\n', 'utf-8'):
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.connect()
 
+        # Print the decoded message
         print(Parser.decode(message))
 
     def send(self):
@@ -60,11 +61,14 @@ class Client:
             self.handle_send(message)
 
     def handle_send(self, message):
-
+        # Handle special cases
         if message == bytes('QUIT\n', 'utf-8'):
-            # FIXME close thread_receive
             self.disconnect()
 
+        if message == bytes('INVALID\n', 'utf-8'):
+            return
+
+        # Print the encoded message
         self.sock.sendall(message)
 
     def connect(self):
@@ -74,12 +78,9 @@ class Client:
             print("Cannot establish connection. Aborting.")
             sys.exit()
 
-        if not self.connected:
-            print("Connected to remote host.")
-            self.connected = True
+        print("Connected to remote host.")
 
     def disconnect(self):
-        #thread_receive.close()
         self.sock.close()
         print("Disconnected.")
         sys.exit()
@@ -96,9 +97,9 @@ class Parser:
         !quit       : QUIT
         '''
 
-        # Case: empty message
+        # Case of an invalid message: don't send to the server
         if len(message) == 0:
-            return bytes('\n', 'utf-8')
+            return bytes('INVALID\n', 'utf-8')
 
         switch = {
             '!': message[1:].upper() + '\n',

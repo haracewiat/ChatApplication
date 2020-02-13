@@ -18,8 +18,7 @@
 import socket
 import threading
 import sys
-import time
-from modules import parser as Parser
+from api import parser
 
 HOST = '18.195.107.195'
 PORT = 5378
@@ -31,6 +30,7 @@ class Client:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     messages = []
     sent = False
+    connected = True
 
     def __init__(self):
 
@@ -38,69 +38,39 @@ class Client:
         self.connect()
 
         # Send and receive messages
-        thread_send = threading.Thread(target=self.send)
-        thread_send.start()
-
-        thread_receive = threading.Thread(target=self.receive, daemon=True)
+        thread_receive = threading.Thread(target=self.receive)
         thread_receive.start()
 
-        thread_handle_receive = threading.Thread(target=self.handle_receive)
-        thread_handle_receive.start()
+        self.send()
+
+        # Disconnect
+        self.disconnect(thread_receive)
 
     def receive(self):
+
+        message = b''
+
         while True:
-            message = self.sock.recv(BUFFER)
-            self.messages.append(message)
-            # if message:
-            #    self.handle_receive(message)
+            data = self.sock.recv(BUFFER)
 
-    def handle_receive(self):
-        while True:
+            if not data:
+                print('Closed connection with the server.')
+                break
 
-            if len(self.messages) > 0:
-                message = self.messages[0]
+            message += data
 
-               # Handle special cases
-                if message == bytes('IN-USE\n', 'utf-8'):
-                    self.sock = socket.socket(
-                        socket.AF_INET, socket.SOCK_STREAM)
-                    self.connect()
-
-                if message == bytes('SEND-OK\n', 'utf-8'):
-                    self.sent = True
-
-                if message[:6] == bytes('WHO-OK', 'utf-8'):
-                    self.sent = True
-
-                if message[:5] == bytes('HELLO', 'utf-8'):
-                    self.sent = True
-
-                # Print the decoded message
-                print(Parser.decode(message))
-
-                # Pop the message
-                self.messages.remove(message)
+            if message[-1] == 10:
+                print(parser.decode(message))
+                message = b''
 
     def send(self):
         while True:
-            message = Parser.encode(input())
-            self.handle_send(message)
+            message = parser.encode(input())
 
-            while not self.sent:
-                time.sleep(1)
+            if message == b'QUIT\n':
+                return
 
-            self.sent = False
-
-    def handle_send(self, message):
-        # Handle special cases
-        if message == bytes('QUIT\n', 'utf-8'):
-            self.disconnect()
-
-        if message == bytes('INVALID\n', 'utf-8'):
-            return
-
-        # Print the encoded message
-        self.sock.sendall(message)
+            self.sock.sendall(message)
 
     def connect(self):
         try:
@@ -111,7 +81,9 @@ class Client:
 
         print("Connected to remote host.")
 
-    def disconnect(self):
+    def disconnect(self, thread):
+        self.sock.shutdown(1)
+        thread.join()
         self.sock.close()
         print("Disconnected.")
         sys.exit()

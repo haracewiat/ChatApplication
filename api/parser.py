@@ -6,10 +6,10 @@
 def encode(message):
     '''
     Chat Application Protocol for the CLIENT side:
-    <username>  : HELLO-FROM <username>
-    @<username> : SEND <username> <message>
-    !who        : WHO
-    !quit       : QUIT
+    <username>  : HELLO-FROM <username>\n
+    @<username> : SEND <username> <message>\n
+    !who        : WHO\n
+    !quit       : QUIT\n
     '''
 
     # Case of an invalid message: don't send to the server

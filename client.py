@@ -18,7 +18,7 @@
 import socket
 import threading
 import sys
-from api import parser
+from api import parser, util
 
 HOST = '18.195.107.195'
 PORT = 5378
@@ -28,9 +28,6 @@ BUFFER = 4096
 class Client:
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    messages = []
-    sent = False
-    connected = True
 
     def __init__(self):
 
@@ -54,14 +51,23 @@ class Client:
             data = self.sock.recv(BUFFER)
 
             if not data:
-                print('Closed connection with the server.')
+                print('Lost connection with the server.')
                 break
 
             message += data
 
-            if message[-1] == 10:
-                print(parser.decode(message))
+            if util.is_eol(message):
+                self.handle_receive(message)
                 message = b''
+
+    def handle_receive(self, message):
+
+        # Print the decoded message
+        print(parser.decode(message))
+
+        # Handle special cases
+        if util.causes_disconnection(message):
+            self.reconnect()
 
     def send(self):
         while True:
@@ -80,6 +86,11 @@ class Client:
             sys.exit()
 
         print("Connected to remote host.")
+
+    def reconnect(self):
+        print('Connection lost. Trying to reconnect...')
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.connect()
 
     def disconnect(self, thread):
         self.sock.shutdown(1)

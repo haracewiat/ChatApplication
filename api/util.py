@@ -1,5 +1,3 @@
-
-
 def causes_disconnection(message):
     switch = {
         bytes('IN-USE\n', 'utf-8'): True,

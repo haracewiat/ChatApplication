@@ -51,7 +51,6 @@ class Client:
             data = self.sock.recv(BUFFER)
 
             if not data:
-                print('Lost connection with the server.')
                 break
 
             message += data
@@ -76,7 +75,8 @@ class Client:
             if message == b'QUIT\n':
                 return
 
-            self.sock.sendall(message)
+            if message != b'INVALID\n':
+                self.sock.sendall(message)
 
     def connect(self):
         try:

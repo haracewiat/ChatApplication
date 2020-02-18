@@ -18,9 +18,10 @@
 import socket
 import threading
 import sys
-from api import parser, util
+import modules.client.parser as parser
+import modules.client.util as util
 
-HOST = '18.195.107.195'
+HOST = '127.0.0.1'  # '18.195.107.195'
 PORT = 5378
 BUFFER = 4096
 

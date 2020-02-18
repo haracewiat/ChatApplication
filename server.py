@@ -20,7 +20,7 @@
 """
 
 import socket
-import threading
+import select
 import time
 import sys
 import modules.server.parser as parser
@@ -37,67 +37,84 @@ class Server:
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     CONNECTIONS = []
+    USERS = []
 
     def __init__(self):
 
         # Bind
         self.sock.bind((HOST, PORT))
+        self.CONNECTIONS.append(self.sock)
 
         # Listen for incoming connections
         self.sock.listen(NO_CONNECTIONS)
 
         # Start threads for accepting and handling connections
-        thread_accept_connections = threading.Thread(
-            target=self.accept_connections)
-        thread_accept_connections.start()
-
-        thread_receive = threading.Thread(
-            target=self.receive)
-        thread_receive.start()
-
-        self.broadcast()
-
-    def accept_connections(self):
         while True:
-            connection, address = self.sock.accept()
-            # login
-            self.CONNECTIONS.append(connection)
+            read_sockets, write_sockets, error_sockets = select.select(
+                self.CONNECTIONS, [], [])
 
-            # Start a send/receive thread for the new connection
-            # thread_handle_connection = threading.Thread(
-            #    target=self.handle_connection(connection))
-            # thread_handle_connection.start()
+            for connection in read_sockets:
+                print(len(self.CONNECTIONS))
+                if connection == self.sock:
+                    print('new connection!')
+                    self.accept_connection()
+                else:
+                    print('reading from the socket...')
+                    self.receive(connection)
+
+        self.sock.close()
+
+    def accept_connection(self):
+        print('adding the new connection...')
+        connection, address = self.sock.accept()
+        self.CONNECTIONS.append(connection)
 
     def handle_connection(self, connection):
         while True:
             pass
 
-    def receive(self):
+    def receive(self, connection):
         message = b''
 
         while True:
-            for connection in self.CONNECTIONS:
-                data = connection.recv(BUFFER)
+            data = connection.recv(BUFFER)
 
-                if not data:
-                    break
-
+            if data:
                 message += data
 
                 if util.is_eol(message):
                     self.respond(message, connection)
                     message = b''
+                    return
+            else:
+                # If no data is received, the connection should be closed
+                self.disconnect(connection)
+                return
 
     def respond(self, message, connection):
-        connection.sendall(b'HELLO user\n')
+        print(util.get_header(message))
+        if util.get_header(message) == 'HELLO-FROM':
+            connection.sendall(b'HELLO user\n')
+        elif util.get_header(message) == 'WHO':
+            connection.sendall(b'WHO-OK\n')
+        elif util.get_header(message) == 'SEND':
+            #self.send_message_to(util.get_message(message), connection, util.get_recipient(message))
+            self.broadcast(util.get_message(message))
 
-    def broadcast(self):
+    def send_message_to(self, message, sender, recipient):
+        print(message)
+        print(sender)
+        print(recipient)
+
+    def broadcast(self, message):
         for connection in self.CONNECTIONS:
-            connection.sendall(b'HELLO broadcast\n')
+            if connection is not self.sock:
+                connection.sendall(b'HELLO broadcast\n')
 
-    def remove(self, connection):
-        if connection in self.connections:
-            self.CONNECTIONS.remove(connection)
+    def disconnect(self, connection):
+        # if connection in self.CONNECTIONS:
+        connection.close()
+        self.CONNECTIONS.remove(connection)
 
 
 server = Server()

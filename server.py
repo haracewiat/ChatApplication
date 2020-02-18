@@ -36,14 +36,13 @@ BUFFER = 4096
 class Server:
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    CONNECTIONS = []
-    USERS = []
+    CONNECTIONS = dict()
 
     def __init__(self):
 
         # Bind
         self.sock.bind((HOST, PORT))
-        self.CONNECTIONS.append(self.sock)
+        self.CONNECTIONS['SERVER'] = self.sock
 
         # Listen for incoming connections
         self.sock.listen(NO_CONNECTIONS)
@@ -51,10 +50,10 @@ class Server:
         # Start threads for accepting and handling connections
         while True:
             read_sockets, write_sockets, error_sockets = select.select(
-                self.CONNECTIONS, [], [])
+                self.CONNECTIONS.values(), [], [])
 
             for connection in read_sockets:
-                print(len(self.CONNECTIONS))
+                print(self.CONNECTIONS.keys())
                 if connection == self.sock:
                     print('new connection!')
                     self.accept_connection()
@@ -67,11 +66,15 @@ class Server:
     def accept_connection(self):
         print('adding the new connection...')
         connection, address = self.sock.accept()
-        self.CONNECTIONS.append(connection)
+        # FIXME add timeout for the handshake
+        self.receive(connection)
 
-    def handle_connection(self, connection):
-        while True:
-            pass
+    def register_user(self, username, connection):
+        if username not in self.CONNECTIONS.keys():
+            self.CONNECTIONS[username] = connection
+            connection.sendall(b'HELLO user\n')
+        else:
+            connection.sendall(b'IN-USE\n')
 
     def receive(self, connection):
         message = b''
@@ -94,17 +97,23 @@ class Server:
     def respond(self, message, connection):
         print(util.get_header(message))
         if util.get_header(message) == 'HELLO-FROM':
-            connection.sendall(b'HELLO user\n')
-        elif util.get_header(message) == 'WHO':
-            connection.sendall(b'WHO-OK\n')
+            self.register_user(util.get_username(message), connection)
+        elif util.get_header(message) == 'WHO\n':
+            connection.sendall(util.get_active_users(
+                list(self.CONNECTIONS.keys())))
         elif util.get_header(message) == 'SEND':
-            #self.send_message_to(util.get_message(message), connection, util.get_recipient(message))
-            self.broadcast(util.get_message(message))
+            self.send_message_to(util.get_message(
+                message), connection, util.get_recipient(message))
 
     def send_message_to(self, message, sender, recipient):
-        print(message)
-        print(sender)
-        print(recipient)
+        if recipient not in self.CONNECTIONS.keys():
+            sender.sendall(b'UNKNOWN\n')
+            return
+
+        connection = self.CONNECTIONS.get(recipient)
+        text = 'DELIVERY ' + message
+        connection.sendall(bytes(text, 'utf-8'))
+        sender.sendall(b'SEND-OK\n')
 
     def broadcast(self, message):
         for connection in self.CONNECTIONS:
@@ -112,9 +121,11 @@ class Server:
                 connection.sendall(b'HELLO broadcast\n')
 
     def disconnect(self, connection):
-        # if connection in self.CONNECTIONS:
-        connection.close()
-        self.CONNECTIONS.remove(connection)
+        for key, value in self.CONNECTIONS.items():
+            if value == connection:
+                connection.close()
+
+        del self.CONNECTIONS[key]
 
 
 server = Server()

@@ -22,8 +22,22 @@ def get_recipient(message):
     return message.decode('utf-8').split(' ')[1]
 
 
+def get_username(message):
+    return message.decode('utf-8').split(' ')[1].rstrip()
+
+
 def get_message(message):
     return message.decode('utf-8').split(' ')[2]
+
+
+def get_active_users(users_list):
+
+    users_list.remove('SERVER')
+    users = ','.join(map(str, users_list))
+
+    response = 'WHO-OK ' + users + '\n'
+
+    return bytes(response, 'utf-8')
 
 
 def verify_handshake(message):
@@ -39,12 +53,9 @@ def verify_who(message):
 
     '''
     Chat Application Protocol for the SERVER side:
-    HELLO           : Successfully logged in as <username>
-    WHO-OK          : Available users: <username>, ...
     SEND-OK\n       : Sent successfully.
     UNKNOWN\n       : Username does not exist
     DELIVERY        : <username>: <message>
-    IN-USE\n        : The username <username> is already taken.
     BUSY\n          : The total number of users is exceeded. Try later.
     BAD-RQST-HDR\n  : Unknown command. 
     BAD-RQST-BODY\n : Your message contains an error and cannot be sent.

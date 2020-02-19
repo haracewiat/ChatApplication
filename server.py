@@ -21,7 +21,6 @@
 
 import socket
 import select
-import time
 import sys
 import modules.server.parser as parser
 import modules.server.util as util
@@ -50,7 +49,7 @@ class Server:
         # Start threads for accepting and handling connections
         while True:
             read_sockets, write_sockets, error_sockets = select.select(
-                self.CONNECTIONS.values(), self.CONNECTIONS.values(), [])
+                self.CONNECTIONS.values(), [], [])
 
             for connection in read_sockets:
                 if connection == self.sock:
@@ -104,11 +103,19 @@ class Server:
                 connection.close()
 
         elif util.get_header(message) == 'WHO\n':
-            connection.sendall(util.get_active_users(
-                list(self.CONNECTIONS.keys())))
+            if len(message.decode('utf-8').split(' ')) == 1:
+                connection.sendall(util.get_active_users(
+                    list(self.CONNECTIONS.keys())))
+            else:
+                connection.sendall(b'BAD-RQST-BODY\n')
+                connection.close()
         elif util.get_header(message) == 'SEND':
-            self.send_message_to(util.get_message(
-                message), self.get_value(connection), util.get_recipient(message))
+            if len(message.decode('utf-8').split(' ')) > 2:
+                self.send_message_to(util.get_message(
+                    message), self.get_value(connection), util.get_recipient(message))
+            else:
+                connection.sendall(b'BAD-RQST-BODY\n')
+                connection.close()
         else:
             connection.sendall(b'BAD-RQST-HDR\n')
 

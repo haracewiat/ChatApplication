@@ -53,9 +53,6 @@ def verify_who(message):
 
     '''
     Chat Application Protocol for the SERVER side:
-    SEND-OK\n       : Sent successfully.
-    UNKNOWN\n       : Username does not exist
-    DELIVERY        : <username>: <message>
     BUSY\n          : The total number of users is exceeded. Try later.
     BAD-RQST-HDR\n  : Unknown command. 
     BAD-RQST-BODY\n : Your message contains an error and cannot be sent.

@@ -50,21 +50,17 @@ class Server:
         # Start threads for accepting and handling connections
         while True:
             read_sockets, write_sockets, error_sockets = select.select(
-                self.CONNECTIONS.values(), [], [])
+                self.CONNECTIONS.values(), self.CONNECTIONS.values(), [])
 
             for connection in read_sockets:
-                print(self.CONNECTIONS.keys())
                 if connection == self.sock:
-                    print('new connection!')
                     self.accept_connection()
                 else:
-                    print('reading from the socket...')
                     self.receive(connection)
 
         self.sock.close()
 
     def accept_connection(self):
-        print('adding the new connection...')
         connection, address = self.sock.accept()
         # FIXME add timeout for the handshake
         self.receive(connection)
@@ -72,7 +68,7 @@ class Server:
     def register_user(self, username, connection):
         if username not in self.CONNECTIONS.keys():
             self.CONNECTIONS[username] = connection
-            connection.sendall(b'HELLO user\n')
+            connection.sendall(bytes('HELLO ' + username + '\n', 'utf-8'))
         else:
             connection.sendall(b'IN-USE\n')
 
@@ -103,17 +99,15 @@ class Server:
                 list(self.CONNECTIONS.keys())))
         elif util.get_header(message) == 'SEND':
             self.send_message_to(util.get_message(
-                message), connection, util.get_recipient(message))
+                message), self.get_value(connection), util.get_recipient(message))
 
     def send_message_to(self, message, sender, recipient):
         if recipient not in self.CONNECTIONS.keys():
             sender.sendall(b'UNKNOWN\n')
-            return
-
-        connection = self.CONNECTIONS.get(recipient)
-        text = 'DELIVERY ' + message
-        connection.sendall(bytes(text, 'utf-8'))
-        sender.sendall(b'SEND-OK\n')
+        else:
+            self.CONNECTIONS.get(sender).sendall(b'SEND-OK\n')
+            text = 'DELIVERY ' + sender + ' ' + message
+            self.CONNECTIONS.get(recipient).sendall(bytes(text, 'utf-8'))
 
     def broadcast(self, message):
         for connection in self.CONNECTIONS:
@@ -126,6 +120,11 @@ class Server:
                 connection.close()
 
         del self.CONNECTIONS[key]
+
+    def get_value(self, connection):
+        for key, value in self.CONNECTIONS.items():    # for name, age in dictionary.iteritems():  (for Python 2.x)
+            if value == connection:
+                return key
 
 
 server = Server()

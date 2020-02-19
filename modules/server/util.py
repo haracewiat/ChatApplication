@@ -27,7 +27,9 @@ def get_username(message):
 
 
 def get_message(message):
-    return message.decode('utf-8').split(' ')[2]
+    text = ' '.join(map(str, message.decode('utf-8').split(' ')[2:]))
+    print(text)
+    return text
 
 
 def get_active_users(users_list):

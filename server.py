@@ -100,8 +100,10 @@ class Server:
                     self.register_user(util.get_username(message), connection)
                 else:
                     connection.sendall(b'BAD-RQST-BODY\n')
+                    self.disconnect(connection)
             else:
                 connection.sendall(b'BAD-RQST-HDR\n')
+                self.disconnect(connection)
         else:
             if util.get_header(message) == 'WHO\n':
                 if len(message.decode('utf-8').split(' ')) == 1:
@@ -109,6 +111,7 @@ class Server:
                         list(self.CONNECTIONS.keys())))
                 else:
                     connection.sendall(b'BAD-RQST-BODY\n')
+                    self.disconnect(connection)
             elif util.get_header(message) == 'SEND':
                 if len(message.decode('utf-8').split(' ')) > 2:
                     if self.CONNECTIONS.get(util.get_recipient(message)) is None:
@@ -118,8 +121,10 @@ class Server:
                             message), self.get_value(connection), util.get_recipient(message))
                 else:
                     connection.sendall(b'BAD-RQST-BODY\n')
+                    self.disconnect(connection)
             else:
                 connection.sendall(b'BAD-RQST-HDR\n')
+                self.disconnect(connection)
 
     def send_message_to(self, message, sender, recipient):
         if recipient not in self.CONNECTIONS.keys():

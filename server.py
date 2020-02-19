@@ -62,6 +62,11 @@ class Server:
 
     def accept_connection(self):
         connection, address = self.sock.accept()
+
+        if len(self.CONNECTIONS) > NO_CONNECTIONS:
+            connection.sendall(b'BUSY\n')
+            return
+
         # FIXME add timeout for the handshake
         self.receive(connection)
 
@@ -91,15 +96,21 @@ class Server:
                 return
 
     def respond(self, message, connection):
-        print(util.get_header(message))
         if util.get_header(message) == 'HELLO-FROM':
-            self.register_user(util.get_username(message), connection)
+            if len(message.decode('utf-8').split(' ')) == 2:
+                self.register_user(util.get_username(message), connection)
+            else:
+                connection.sendall(b'BAD-RQST-BODY\n')
+                connection.close()
+
         elif util.get_header(message) == 'WHO\n':
             connection.sendall(util.get_active_users(
                 list(self.CONNECTIONS.keys())))
         elif util.get_header(message) == 'SEND':
             self.send_message_to(util.get_message(
                 message), self.get_value(connection), util.get_recipient(message))
+        else:
+            connection.sendall(b'BAD-RQST-HDR\n')
 
     def send_message_to(self, message, sender, recipient):
         if recipient not in self.CONNECTIONS.keys():

@@ -1,7 +1,8 @@
 def causes_disconnection(message):
     switch = {
         bytes('IN-USE\n', 'utf-8'): True,
-        bytes('BAD-RQST-HDR\n', 'utf-8'): True
+        bytes('BAD-RQST-HDR\n', 'utf-8'): True,
+        bytes('BAD-RQST-BODY\n', 'utf-8'): True
     }
 
     return switch.get(message, False)

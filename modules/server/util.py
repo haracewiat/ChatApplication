@@ -53,7 +53,5 @@ def verify_who(message):
 
     '''
     Chat Application Protocol for the SERVER side:
-    BUSY\n          : The total number of users is exceeded. Try later.
-    BAD-RQST-HDR\n  : Unknown command. 
     BAD-RQST-BODY\n : Your message contains an error and cannot be sent.
     '''

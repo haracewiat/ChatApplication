@@ -84,9 +84,11 @@ class Server:
             if data:
                 message += data
 
-                if util.is_eol(message):
-                    self.respond(message, connection)
-                    message = b''
+                if util.contains_eol(message):
+                    text = util.extract(message)
+                    for t in text:
+                        self.respond(bytes(t, 'utf-8'), connection)
+                    message = util.remove(text, message)
                     return
             else:
                 # If no data is received, the connection should be closed

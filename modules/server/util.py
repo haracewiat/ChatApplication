@@ -1,6 +1,19 @@
-def is_eol(message):
-    if message[-1] == 10:
+def contains_eol(message):
+    if message.decode('utf-8').find('/n'):
         return True
+
+
+def extract(message):
+    return message.decode('utf-8').split('/n')
+
+
+def remove(text, message):
+    new_message = message.decode('utf-8')
+    if text:
+        for t in text:
+            new_message.replace(t, '')
+
+    return bytes(new_message, 'utf-8')
 
 
 def is_valid(message):
@@ -28,7 +41,6 @@ def get_username(message):
 
 def get_message(message):
     text = ' '.join(map(str, message.decode('utf-8').split(' ')[2:]))
-    print(text)
     return text
 
 

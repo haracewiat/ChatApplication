@@ -142,7 +142,8 @@ class Server:
                 connection.sendall(b'HELLO broadcast\n')
 
     def disconnect(self, connection):
-        del self.CONNECTIONS[self.get_value(connection)]
+        if self.get_value(connection) is not None:
+            del self.CONNECTIONS[self.get_value(connection)]
         connection.close()
 
     def get_value(self, connection):

@@ -97,36 +97,37 @@ class Server:
 
     def respond(self, message, connection):
         if self.get_value(connection) is None:
-            if util.get_header(message) == 'HELLO-FROM':
-                if len(message.decode('utf-8').split(' ')) == 2:
-                    self.register_user(util.get_username(message), connection)
-                else:
-                    connection.sendall(b'BAD-RQST-BODY\n')
-                    self.disconnect(connection)
-            else:
-                connection.sendall(b'BAD-RQST-HDR\n')
-                self.disconnect(connection)
+            self.handle_handshake(message, connection)
         else:
             if util.get_header(message) == 'WHO\n':
-                if len(message.decode('utf-8').split(' ')) == 1:
-                    connection.sendall(util.get_active_users(
-                        list(self.CONNECTIONS.keys())))
-                else:
-                    connection.sendall(b'BAD-RQST-BODY\n')
-                    self.disconnect(connection)
+                self.handle_who(message, connection)
             elif util.get_header(message) == 'SEND':
-                if len(message.decode('utf-8').split(' ')) > 2:
-                    if self.CONNECTIONS.get(util.get_recipient(message)) is None:
-                        connection.sendall(b'UNKNOWN\n')
-                    else:
-                        self.send_message_to(util.get_message(
-                            message), self.get_value(connection), util.get_recipient(message))
-                else:
-                    connection.sendall(b'BAD-RQST-BODY\n')
-                    self.disconnect(connection)
+                self.handle_send(message, connection)
             else:
                 connection.sendall(b'BAD-RQST-HDR\n')
                 self.disconnect(connection)
+
+    def handle_handshake(self, message, connection):
+        if util.get_header(message) == 'HELLO-FROM':
+            if len(message.decode('utf-8').split(' ')) == 2:
+                self.register_user(util.get_username(message), connection)
+            else:
+                connection.sendall(b'BAD-RQST-BODY\n')
+                self.disconnect(connection)
+        else:
+            connection.sendall(b'BAD-RQST-HDR\n')
+            self.disconnect(connection)
+
+    def handle_send(self, message, connection):
+        if len(message.decode('utf-8').split(' ')) > 2:
+            if self.CONNECTIONS.get(util.get_recipient(message)) is None:
+                connection.sendall(b'UNKNOWN\n')
+            else:
+                self.send_message_to(util.get_message(
+                    message), self.get_value(connection), util.get_recipient(message))
+        else:
+            connection.sendall(b'BAD-RQST-BODY\n')
+            self.disconnect(connection)
 
     def send_message_to(self, message, sender, recipient):
         if recipient not in self.CONNECTIONS.keys():
@@ -136,10 +137,13 @@ class Server:
             text = 'DELIVERY ' + sender + ' ' + message
             self.CONNECTIONS.get(recipient).sendall(bytes(text, 'utf-8'))
 
-    def broadcast(self, message):
-        for connection in self.CONNECTIONS:
-            if connection is not self.sock:
-                connection.sendall(b'HELLO broadcast\n')
+    def handle_who(self, message, connection):
+        if len(message.decode('utf-8').split(' ')) == 1:
+            connection.sendall(util.get_active_users(
+                list(self.CONNECTIONS.keys())))
+        else:
+            connection.sendall(b'BAD-RQST-BODY\n')
+            self.disconnect(connection)
 
     def disconnect(self, connection):
         if self.get_value(connection) is not None:

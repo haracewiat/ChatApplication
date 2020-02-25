@@ -130,12 +130,9 @@ class Server:
             self.disconnect(connection)
 
     def send_message_to(self, message, sender, recipient):
-        if recipient not in self.CONNECTIONS.keys():
-            sender.sendall(b'UNKNOWN\n')
-        else:
-            self.CONNECTIONS.get(sender).sendall(b'SEND-OK\n')
-            text = 'DELIVERY ' + sender + ' ' + message
-            self.CONNECTIONS.get(recipient).sendall(bytes(text, 'utf-8'))
+        self.CONNECTIONS.get(sender).sendall(b'SEND-OK\n')
+        text = 'DELIVERY ' + sender + ' ' + message
+        self.CONNECTIONS.get(recipient).sendall(bytes(text, 'utf-8'))
 
     def handle_who(self, message, connection):
         if len(message.decode('utf-8').split(' ')) == 1:

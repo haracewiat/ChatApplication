@@ -44,9 +44,9 @@ class Server:
         self.CONNECTIONS['SERVER'] = self.sock
 
         # Listen for incoming connections
-        self.sock.listen(NO_CONNECTIONS)
+        self.sock.listen()
 
-        # Start threads for accepting and handling connections
+        # Start accepting and handling connections
         while True:
             read_sockets, write_sockets, error_sockets = select.select(
                 self.CONNECTIONS.values(), [], [])
@@ -54,6 +54,7 @@ class Server:
             for connection in read_sockets:
                 if connection == self.sock:
                     self.accept_connection()
+                    print(len(self.CONNECTIONS))
                 else:
                     self.receive(connection)
 
@@ -66,7 +67,8 @@ class Server:
             connection.sendall(b'BUSY\n')
             return
 
-        self.receive(connection)
+        # self.receive(connection)
+        self.register_user(str(len(self.CONNECTIONS)), connection)
 
     def register_user(self, username, connection):
         if username not in self.CONNECTIONS.keys():
